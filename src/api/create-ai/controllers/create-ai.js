@@ -5,41 +5,39 @@
  */
 
 const { createCoreController } = require('@strapi/strapi').factories;
+const axios = require('axios');
 
-
-
-// import { Configuration, OpenAIApi} from "openai";
-const { Configuration, OpenAIApi} = require("openai");
-
-async function createAns(prompt){
+async function createAns(prompt) {
     // const maxToken = 264;
-    
-    
-    const configuration = new Configuration({
-        apiKey: process.env.OPENAI_API_KEY,
-    });
-    const openai = new OpenAIApi(configuration);
-    try{
-        console.log("prompt::",prompt)
-        const response = await openai.createCompletion({
-            model: "text-davinci-002",
-            prompt: prompt,
-            temperature: 0.7,
-            max_tokens: 256,
-            top_p: 1,
-            frequency_penalty: 0,
-            presence_penalty: 0,
-          });
+    try {
+        console.log("prompt::", prompt)
+        var data = JSON.stringify({
+            "text": prompt,
+        });
 
-        
+        var config = {
+            method: 'post',
+            url: 'http://127.0.0.1:5000/api/v1/create-summarize',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            data: data
+        };
+
+        var response = await axios(config)
+        console.log("response::", response.data)
+
+
+
+
 
         return {
             success: true,
             error: null,
-            data: response.data.choices[0].text
+            data: response.data.data
         }
-    }catch(error){
-        console.log("OpenAi:",error)
+    } catch (error) {
+        console.log("OpenAi:", error)
         return {
             success: false,
             error: error,
@@ -59,7 +57,7 @@ module.exports = createCoreController('api::create-ai.create-ai', ({ strapi }) =
 
         const { prompt } = ctx.request.body;
 
-        console.log("body::",prompt)
+        console.log("body::", prompt)
         var id;
         if (ctx.request && ctx.request.header && ctx.request.header.authorization) {
             // use the current system with JWT in the header
@@ -73,15 +71,15 @@ module.exports = createCoreController('api::create-ai.create-ai', ({ strapi }) =
         const entity = await strapi.db.query('plugin::users-permissions.user').findOne({
             where: { id }
         });
-        console.log("entity::",entity)
+        console.log("entity::", entity)
         const ans = await createAns(prompt);
-        
-        if(entity){
+
+        if (entity) {
 
             var usedToken = entity.usedToken | 0;
 
-            console.log("usedToken::",usedToken)
-            console.log("ans length::",ans.data.length)
+            console.log("usedToken::", usedToken)
+            console.log("ans length::", ans.data.length)
             const result = await strapi.db.query('plugin::users-permissions.user').update({
                 where: {
                     id
@@ -91,7 +89,7 @@ module.exports = createCoreController('api::create-ai.create-ai', ({ strapi }) =
                 }
             }
             );
-            console.log("result::",result)
+            console.log("result::", result)
         }
 
 
@@ -102,7 +100,7 @@ module.exports = createCoreController('api::create-ai.create-ai', ({ strapi }) =
 
         const sanitizedEntity = await this.sanitizeOutput(ans);
         return this.transformResponse(sanitizedEntity);
-        
-        
+
+
     }
 }));
